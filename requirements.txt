@@ -1,0 +1,6 @@
+selenium
+webdriver-manager
+requests-html
+arsenic
+bs4
+lxml
