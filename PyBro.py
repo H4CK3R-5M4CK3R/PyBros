@@ -1,4 +1,4 @@
-from utils import __as__, Scrapper
+from PyBro.utils import __as__, Scrapper
 from requests_html import HTML
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -10,7 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from functools import wraps
 from typing import Callable, Union, Coroutine, Any
-from type import Scrapper_, AScrapper_
+from PyBro.type import Scrapper_, AScrapper_
 
 class Browser:
     def __init__(self, browser_type='chrome', hidden=True):
@@ -108,7 +108,8 @@ class Browser:
                 return False
 
     def __g(self, url: str, cookies: dict={}, domain: str = None):
-        self.driver.get(url)
+        if len(cookies) > 0:
+            self.driver.get(url)
         for key, paire in cookies:
             if domain:
                 self.driver.add_cookie(
@@ -129,8 +130,34 @@ class Browser:
         scrp = Scrapper(self.get_html(), self.driver)
         return scrp
     
-    async def __ag(self, url: str):
+    async def __ag(self, url: str, cookies: dict={}, domain: str = None):
+        if len(cookies)  > 0:
+            await self.session.get(url)
+        for key, paire in cookies:
+            if domain:
+                await self.driver.add_cookie(
+                    {
+                        'name' : key,
+                        'value' : paire,
+                        "domain" : domain
+                    }
+                )
+            else:
+                await self.driver.add_cookie(
+                    {
+                        'name' : key,
+                        'value' : paire
+                    }
+                )
         await self.session.get(url)
+        scrp = Scrapper(await self.get_html(), self.session)
+        return scrp
+
+    def _gel(self):
+        scrp = Scrapper(self.get_html(), self.driver)
+        return scrp
+
+    async def _agel(self):
         scrp = Scrapper(await self.get_html(), self.session)
         return scrp
 
@@ -182,12 +209,14 @@ class Browser:
         val = await html.arender(script=js, sleep=wait)
         return val
 
-    setup_browser: function = __as__(_setup_sync_browser, _setup_async_browser)
+    get_element = __as__(_gel, _agel)
+
+    setup_browser = __as__(_setup_sync_browser, _setup_async_browser)
     """
     this is a simple classic examples
     """
 
-    get: Union[Callable[[str, dict, str], Scrapper_], Callable[[str], Coroutine[AScrapper_]]] = __as__(__g, __ag)
+    get: Union[Callable[[str, dict, str], Scrapper_], Callable[[str, dict, str], Coroutine[None, None, AScrapper_]]] = __as__(__g, __ag)
     """
     Make a get request and retrieves the Scrapper instance for the given URL.
 
@@ -200,22 +229,22 @@ class Browser:
         Scrapper: The Scrapper instance with page content.
     """
 
-    close: function = __as__(__c, __ac)
+    close = __as__(__c, __ac)
     """
     Close the browser
     """
 
-    get_html: function = __as__(__gh, __agh)
+    get_html: Union[Callable[[None], Any], Callable[[None], Coroutine[None, None, None]]] = __as__(__gh, __agh)
     """
     Return the HTML instance from the requests-html.HTML
     """
 
-    execute_js: Union[Callable[[str], Any], Callable[[str], Coroutine[Any]]] = __as__(__ejs, __aejs)
+    execute_js: Union[Callable[[str], Any], Callable[[str], Coroutine[None, None, Any]]] = __as__(__ejs, __aejs)
     """
     Execute javascript if you have custom javascript then you can use this
     """
 
-    execute_js_on_page: Union[Callable[[str, float], Any], Callable[[str], Coroutine[Any]]] = __as__(__ejop, __aejop)
+    execute_js_on_page: Union[Callable[[str, float], Any], Callable[[str], Coroutine[None, None, Any]]] = __as__(__ejop, __aejop)
     """
     Execute custom javascript on a page
 
