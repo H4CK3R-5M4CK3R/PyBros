@@ -8,6 +8,7 @@ from arsenic.constants import SelectorType
 from arsenic import session
 from arsenic.session import Element as AElement
 from selenium.webdriver.common.action_chains import ActionChains as Element
+from PyBro.type import Scrapper_, AScrapper_
 import re
 
 def __as__(sync_func, async_func):
@@ -21,12 +22,23 @@ def __as__(sync_func, async_func):
 
 class Scrapper:
 
-    def __init__(self, html_string: str = None, browser: session=None):
-        self.html = html_string
-        self.browser = browser
+    def __init__(self, html_string: str = None, browser: session=None, current_url: str = None):
+        self.html: str = html_string
+        """
+        Passed html code
+        """
+        self.browser: session = browser
         self.html_soup = BeautifulSoup(html_string, 'lxml')
         self.html_requests = HTML(html=html_string)
+        self.current_url: str = current_url # Here you will get the current page url of the browser
+        """
+        Current opened url in the page
+        """
         self._attach_methods_to_elements(self.html_soup)
+        self.old_src:list = [] # It will store the src
+        """
+        It will store the Scrapper_ history class as {url: Scrapper_} which will help you to get something from page url
+        """
 
     def _attach_methods_to_elements(self, soup):
         for element in self.html_soup.find_all(True):
@@ -65,7 +77,7 @@ class Scrapper:
             xpath = self._get_xpath(element)
             el = self.browser.find_element(By.XPATH, xpath)
             el.screenshot(filename)
-            return f"Screenshot saved as {filename} (sync)"
+            return filename
         else:
             raise ValueError("Browser instance is not defined")
 
@@ -130,12 +142,12 @@ class Scrapper:
         """
         if self.browser:
             xpath = self._get_xpath(el)
-            el = self.browser.find_element(xpath, SelectorType.xpath)
+            el: Element = self.browser.find_element(By.XPATH, xpath)
         try:
             el.click()
             return True
         except:
-            return False
+            return None
 
     async def _aclick(self, el) -> bool:
         """Click on the given element
@@ -145,19 +157,17 @@ class Scrapper:
         """
         if self.browser:
             xpath = self._get_xpath(el)
-            el = await self.browser.get_element(xpath, SelectorType.xpath)
-        try:
+            el: AScrapper_ = await self.browser.get_element(xpath, SelectorType.xpath)
             await el.click()
             return True
-        except:
-            return False
+        return False
 
     def _gele(self, el: Element) -> Element:
         """Return the element webDriver element
         """
         if self.browser:
             xpath = self._get_xpath(el)
-            el = self.browser.find_element(xpath, SelectorType.xpath)
+            el = self.browser.find_element(By.XPATH, xpath)
         return el
 
     async def _agele(self, el: AElement) -> AElement:
@@ -168,8 +178,22 @@ class Scrapper:
             el = await self.browser.get_element(xpath, SelectorType.xpath)
         return el
 
+    def _get_current_url(self):
+        return self.browser.current_url
+    
+    async def _aget_current_url(self):
+        return await self.browser.get_url()
+
+    def _update(self):
+        return Scrapper(self.browser.page_source, self.browser, current_url=self.get_url())
+
+    async def _aupdate(self):
+        return Scrapper(await self.browser.get_page_source(), self.browser, current_url=await self.get_url())
+
     get_images = _get_images
     get_html = _geht
     take_screenshot = __as__(_take_screenshot_sync, _take_screenshot_async)
     click = __as__(_click, _aclick)
     DElement = __as__(_gele, _agele)
+    get_url = __as__(_get_current_url, _aget_current_url)
+    new_html = __as__(_update, _aupdate)

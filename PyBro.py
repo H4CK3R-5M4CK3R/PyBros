@@ -13,9 +13,11 @@ from typing import Callable, Union, Coroutine, Any
 from PyBro.type import Scrapper_, AScrapper_
 
 class Browser:
+
     def __init__(self, browser_type='chrome', hidden=True):
         self.browser_type = browser_type
         self.hidden = hidden
+        self.url = None
         self.driver = None
         self.session = None
 
@@ -24,6 +26,11 @@ class Browser:
             options = ChromeOptions()
             if self.hidden:
                 options.add_argument('--headless')
+            options.add_experimental_option("prefs", {
+                "download.default_directory": "/dev/null",
+                "download.prompt_for_download": False,
+                "safebrowsing.enabled": True,
+            })
             options.add_argument('--window-size=1920,1200')
             self.driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
@@ -31,6 +38,10 @@ class Browser:
             options = FirefoxOptions()
             if self.hidden:
                 options.add_argument('--headless')
+            options.set_preference("browser.download.folderList", 2)
+            options.set_preference("browser.download.dir", "/dev/null")
+            options.set_preference("browser.helperApps.neverAsk.saveToDisk", "application/octet-stream")
+            options.set_preference("pdfjs.disabled", True)
             options.add_argument('--window-size=1920,1200')
             self.driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=options)
 
@@ -40,6 +51,11 @@ class Browser:
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--window-size=1920,1200')
+            options.add_experimental_option("prefs", {
+                "download.default_directory": "/dev/null",
+                "download.prompt_for_download": False,
+                "safebrowsing.enabled": True,
+            })
             self.driver = webdriver.Chrome(options=options)
         else:
             raise ValueError('Unsupported browser. Only "chrome" and "firefox" are supported.')
@@ -55,7 +71,12 @@ class Browser:
                         'args': [
                             '--headless' if self.hidden else '',
                             '--window-size=1920,1200'
-                        ]
+                        ],
+                        'prefs': {
+                            'download.default_directory': '/dev/null',
+                            'download.prompt_for_download': False,
+                            'safebrowsing.enabled': True,
+                        }
                     }
                 }
             )
@@ -67,7 +88,13 @@ class Browser:
                         'args': [
                             '--headless' if self.hidden else '',
                             '--window-size=1920,1200'
-                        ]
+                        ],
+                        'prefs': {
+                            'browser.download.folderList': 2,  # Custom location
+                            'browser.download.dir': '/dev/null',  # Redirect downloads to a non-existent directory
+                            'browser.helperApps.neverAsk.saveToDisk': 'application/octet-stream',
+                            'pdfjs.disabled': True,  # Disable PDF viewer
+                        }
                     }
                 }
             )
@@ -77,11 +104,14 @@ class Browser:
                 **{
                     'goog:chromeOptions': {
                         'args': [
-                            '--headless',
-                            '--no-sandbox',
-                            '--disable-dev-shm-usage',
+                            '--headless' if self.hidden else '',
                             '--window-size=1920,1200'
-                        ]
+                        ],
+                        'prefs': {
+                            'download.default_directory': '/dev/null',
+                            'download.prompt_for_download': False,
+                            'safebrowsing.enabled': True,
+                        }
                     }
                 }
             )
@@ -108,6 +138,7 @@ class Browser:
                 return False
 
     def __g(self, url: str, cookies: dict={}, domain: str = None):
+        self.url = url
         if len(cookies) > 0:
             self.driver.get(url)
         for key, paire in cookies:
@@ -127,38 +158,32 @@ class Browser:
                     }
                 )
         self.driver.get(url)
-        scrp = Scrapper(self.get_html(), self.driver)
+        scrp = Scrapper(self.get_html(), self.driver, current_url=url)
         return scrp
     
     async def __ag(self, url: str, cookies: dict={}, domain: str = None):
+        self.url = url
         if len(cookies)  > 0:
             await self.session.get(url)
-        for key, paire in cookies:
+        for key, paire in cookies.items():
             if domain:
-                await self.driver.add_cookie(
-                    {
-                        'name' : key,
-                        'value' : paire,
-                        "domain" : domain
-                    }
+                await self.session.add_cookie(
+                    name=key,
+                    value=paire,
+                    domain=domain
                 )
             else:
-                await self.driver.add_cookie(
-                    {
-                        'name' : key,
-                        'value' : paire
-                    }
-                )
+                await self.session.add_cookie(name=key, value=paire)
         await self.session.get(url)
-        scrp = Scrapper(await self.get_html(), self.session)
+        scrp = Scrapper(await self.get_html(), self.session, current_url=url)
         return scrp
 
     def _gel(self):
-        scrp = Scrapper(self.get_html(), self.driver)
+        scrp = Scrapper(self.get_html(), self.driver, current_url=self.url)
         return scrp
 
     async def _agel(self):
-        scrp = Scrapper(await self.get_html(), self.session)
+        scrp = Scrapper(await self.get_html(), self.session, current_url=self.url)
         return scrp
 
     def __c(self):
@@ -198,16 +223,31 @@ class Browser:
             return val
 
     def __ejop(self, js: str, wait: float = 0.2) -> any:
-        doc = self.get_html()
-        html = HTML(html=doc)
-        val = html.render(script=js, sleep=wait)
+        val = self.driver.execute_script(js)
         return val
     
     async def __aejop(self, js: str, wait: float = 0.2) -> any:
-        doc = await self.get_html()
-        html = HTML(html=doc)
-        val = await html.arender(script=js, sleep=wait)
+        val = await self.session.execute_script(js)
         return val
+
+    async def _async_request_interceptor(self, data):
+        request_url = data['request']['url']
+        self.link_history.append(request_url)
+        print(f"Added to the history : {request_url}")
+
+    def _scro(self, percentage: float):
+        total_height = self.execute_js_on_page("return document.body.scrollHeight")
+        per = percentage / 100
+        scroll_position = total_height * per
+        self.execute_js_on_page(f"window.scrollTo(0, {scroll_position});")
+        return True
+
+    async def _ascro(self, percentage: float):
+        total_height = await self.execute_js_on_page("return document.body.scrollHeight")
+        per = percentage / 100
+        scroll_position = total_height * per
+        await self.execute_js_on_page(f"window.scrollTo(0, {scroll_position});")
+        return True
 
     get_element = __as__(_gel, _agel)
 
@@ -234,7 +274,7 @@ class Browser:
     Close the browser
     """
 
-    get_html: Union[Callable[[None], Any], Callable[[None], Coroutine[None, None, None]]] = __as__(__gh, __agh)
+    get_html: Union[Callable[[None], Any], Callable[[str], Coroutine[None, None, str]]] = __as__(__gh, __agh)
     """
     Return the HTML instance from the requests-html.HTML
     """
@@ -254,4 +294,12 @@ class Browser:
 
     Return:
         Any: Return the output
+    """
+
+    scroll_down = __as__(_scro, _ascro)
+    """
+    This function helps to scroll to the specific place pass the percentage as float
+
+    Args:
+        percentage (float): Percentage in float
     """

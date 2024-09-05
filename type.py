@@ -5,6 +5,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from bs4 import BeautifulSoup
 
 class ScrapperMixin:
+
     def get_images(self, include_others: bool = False, only_include: Optional[List[str]] = None) -> List[str]:
         """Get the total number of images.
 
@@ -52,7 +53,24 @@ class ScrapperMixin:
         """
         pass
 
+    def get_url(self) -> str:
+        """Return the current opened url
+
+        Returns:
+            str: Url which is opened
+        """
+        pass
+
+    def new_html(self):
+        """Update the html code and return the Scrapper object
+
+        Returns:
+            Scrapper_: Scrapper
+        """
+        pass
+
 class ScrapperMixAsy:
+
     def __init__(self) -> None:
         pass
 
@@ -100,6 +118,22 @@ class ScrapperMixAsy:
 
         Returns:
             Element: The arsenic Element instance.
+        """
+        pass
+
+    async def get_url(self) -> str:
+        """Return the current opened url
+
+        Returns:
+            str: Url which is opened
+        """
+        pass
+
+    async def new_html(self):
+        """Update the html code and return the Scrapper object
+
+        Returns:
+            Scrapper_: Scrapper
         """
         pass
 
