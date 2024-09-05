@@ -1,4 +1,4 @@
-from PyBro.utils import __as__, Scrapper
+from PyBros.utils import __as__, Scrapper
 from requests_html import HTML
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -10,7 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 from functools import wraps
 from typing import Callable, Union, Coroutine, Any
-from PyBro.type import Scrapper_, AScrapper_
+from PyBros.type import Scrapper_, AScrapper_
 
 class Browser:
 

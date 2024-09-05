@@ -8,7 +8,6 @@ from arsenic.constants import SelectorType
 from arsenic import session
 from arsenic.session import Element as AElement
 from selenium.webdriver.common.action_chains import ActionChains as Element
-from PyBro.type import Scrapper_, AScrapper_
 import re
 
 def __as__(sync_func, async_func):
@@ -157,7 +156,7 @@ class Scrapper:
         """
         if self.browser:
             xpath = self._get_xpath(el)
-            el: AScrapper_ = await self.browser.get_element(xpath, SelectorType.xpath)
+            el = await self.browser.get_element(xpath, SelectorType.xpath)
             await el.click()
             return True
         return False
