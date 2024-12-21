@@ -4,3 +4,4 @@ requests-html
 arsenic
 bs4
 lxml
+lxml_html_clean
